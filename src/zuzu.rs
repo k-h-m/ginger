@@ -479,23 +479,24 @@ fn split_by_distance<'a>(x: &[TT], c: &'a[usize]) -> Vec<&'a[usize]> {
 fn create_tt(t: &[TT], c: &[usize]) -> TT {
    let b = merge_boxes(c.iter().map(|&x| &t[x].b_box));
    let s = c.iter().fold("".to_string(), |acc,&x| acc + &t[x].text + "\n");
-   TT {text: s, b_box: b, font_size: t[c[0]].font_size, font_name: String::from(t[c[0]].font_name.as_str())}
+   TT{text: s, b_box: b, font_size: t[c[0]].font_size, font_name: String::from(t[c[0]].font_name.as_str())}
 }
 
 fn zuzu1(x: &[TT]) -> bool {
     let p = Poset::create_poset(x);
     assert!(p.elt.len() == x.len());
-    let mut dt = Vec::new(); dt.resize(p.elt.len(), 0);
+    let mut tt2 = vec![];
     for c in p.chain_iter() {
         let sf = split_by_font(x, &c);
         for i in 0 .. sf.len() {
             let sd = split_by_distance(x, sf[i]);
             for j in 0 .. sd.len() {
-                println!("===");
-                println!("{}", create_tt(x, sd[j]).text);
+                tt2.push(create_tt(x, sd[j]));
             }
         }
     }
+    let p2 = Poset::create_poset(&tt2);
+    tt2.iter().map(|x| println!("===\n{}",x.text)).count();
     true
 }
 
