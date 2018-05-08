@@ -9,7 +9,7 @@ extern crate clap;
 //
 use std::cmp::Ordering;
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 struct BBox {
     top: f64,
     left: f64,
@@ -134,6 +134,21 @@ fn b_box(p: &[poppler::ffi::PopplerRectangle]) -> BBox {
     return BBox{left, top, right, bottom}
 }
 
+fn merge_boxes<'a, I: Iterator<Item = &'a BBox>>(mut boxes: I) -> BBox {
+    let b0 = boxes.next().unwrap();
+    let mut top = b0.top;
+    let mut bottom = b0.bottom;
+    let mut left = b0.left;
+    let mut right = b0.right;
+    for b in boxes {
+        if top > b.top {top = b.top}
+        if bottom < b.bottom {bottom = b.bottom}
+        if left > b.left {left = b.left}
+        if right < b.right {right = b.right}
+    }
+    return BBox{left,top,right,bottom}
+}
+
 struct Node {
     pred: Vec<usize>,
     succ: Vec<usize>
@@ -143,8 +158,6 @@ struct Poset {
     min: Vec<usize>,
     max: Vec<usize>,
     elt: Vec<Node>,
-    idx: usize,
-    chld: Option<usize>
 }
 
 impl Poset {
@@ -171,7 +184,7 @@ fn create_poset(x: &[TT]) -> Poset {
         }
         elt.push(Node{pred, succ});
     }
-    Poset{min, max, elt, idx: 0, chld: None}
+    Poset{min, max, elt}
 }
 
 /*
@@ -260,6 +273,10 @@ fn extend_chain(&self, chain: &mut Vec<usize>, from: usize) {
     }
 }
 
+fn chain_iter<'a>(&'a self) -> ChainIterator<'a> {
+    ChainIterator{poset: self, idx: 0, chld: None}
+}
+
 fn shrink_poset(&self, x: &[TT]) {
     let mut dt = Vec::new(); dt.resize(self.elt.len(), 0);
     let elt = &self.elt;
@@ -327,11 +344,18 @@ fn chain_fn(c: &[usize], x: &[TT], _dt: &mut[usize]) {
     }
 }
 
-impl Iterator for Poset {
+
+struct ChainIterator<'a> {
+    poset: &'a Poset,
+    idx: usize,
+    chld: Option<usize>
+}
+
+impl<'a> Iterator for ChainIterator<'a> {
     type Item = Vec<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let elt = &self.elt;
+        let elt = &self.poset.elt;
         while self.idx < elt.len() {
             let e = &elt[self.idx];
             if e.pred.len() != 1 || e.succ.len() > 1 {
@@ -352,7 +376,7 @@ impl Iterator for Poset {
         }
         else if (preds == 0 && succs == 1) || (preds > 1 && succs == 1) {
             let mut chain = vec![self.idx];
-            self.extend_chain(&mut chain, elt[self.idx].succ[0]);
+            self.poset.extend_chain(&mut chain, elt[self.idx].succ[0]);
             self.idx += 1;
             self.chld = None;
             Some(chain)
@@ -365,7 +389,7 @@ impl Iterator for Poset {
                 },
                 Some(n) => {
                     let mut chain = vec![];
-                    self.extend_chain(&mut chain, elt[self.idx].succ[n]);
+                    self.poset.extend_chain(&mut chain, elt[self.idx].succ[n]);
                     if n + 1 < succs {
                         self.chld = Some(n + 1);
                     }
@@ -380,7 +404,7 @@ impl Iterator for Poset {
         else if preds == 1 && succs > 1 {
             let n = match self.chld {None => 0, Some(x) => x};
             let mut chain = vec![];
-            self.extend_chain(&mut chain, elt[self.idx].succ[n]);
+            self.poset.extend_chain(&mut chain, elt[self.idx].succ[n]);
             if n + 1 < succs {
                 self.chld = Some(n + 1);
             }
@@ -401,7 +425,7 @@ fn check_iterator(x: &[TT]) -> bool {
     let p = Poset::create_poset(x);
     assert!(p.elt.len() == x.len());
     let mut dt = Vec::new(); dt.resize(p.elt.len(), 0);
-    for c in p {
+    for c in p.chain_iter() {
         for i in 0 .. c.len() {
             dt[c[i]] += 1;
         }
@@ -440,7 +464,7 @@ fn split_by_distance<'a>(x: &[TT], c: &'a[usize]) -> Vec<&'a[usize]> {
         dv.push(x[c[i-1]].b_box.dist(&x[c[i]].b_box));
     }
     let mut from = 0;
-    let magic_num1 = x[c[0]].b_box.width();
+    let magic_num1 = 0.4 * x[c[0]].b_box.width();
     let mut r = vec![];
     for i in 1 .. c.len() {
         if dv[i-1] > magic_num1 {
@@ -452,21 +476,23 @@ fn split_by_distance<'a>(x: &[TT], c: &'a[usize]) -> Vec<&'a[usize]> {
     r
 }
 
+fn create_tt(t: &[TT], c: &[usize]) -> TT {
+   let b = merge_boxes(c.iter().map(|&x| &t[x].b_box));
+   let s = c.iter().fold("".to_string(), |acc,&x| acc + &t[x].text + "\n");
+   TT {text: s, b_box: b, font_size: t[c[0]].font_size, font_name: String::from(t[c[0]].font_name.as_str())}
+}
 
 fn zuzu1(x: &[TT]) -> bool {
     let p = Poset::create_poset(x);
     assert!(p.elt.len() == x.len());
     let mut dt = Vec::new(); dt.resize(p.elt.len(), 0);
-    for c in p {
+    for c in p.chain_iter() {
         let sf = split_by_font(x, &c);
         for i in 0 .. sf.len() {
             let sd = split_by_distance(x, sf[i]);
             for j in 0 .. sd.len() {
-                let w = &sd[j];
                 println!("===");
-                for k in 0 .. w.len() {
-                    println!("{}", x[w[k]].text);
-                }
+                println!("{}", create_tt(x, sd[j]).text);
             }
         }
     }
