@@ -482,21 +482,20 @@ fn create_tt(t: &[TT], c: &[usize]) -> TT {
    TT{text: s, b_box: b, font_size: t[c[0]].font_size, font_name: String::from(t[c[0]].font_name.as_str())}
 }
 
-fn zuzu1(x: &[TT]) -> bool {
-    let p = Poset::create_poset(x);
-    assert!(p.elt.len() == x.len());
-    let mut tt2 = vec![];
-    for c in p.chain_iter() {
-        let sf = split_by_font(x, &c);
-        for i in 0 .. sf.len() {
-            let sd = split_by_distance(x, sf[i]);
-            for j in 0 .. sd.len() {
-                tt2.push(create_tt(x, sd[j]));
+fn zuzu1(t1: &[TT]) -> bool {
+    let p1 = Poset::create_poset(t1);
+    assert!(p1.elt.len() == t1.len());
+    let mut t2 = vec![];
+    for c in p1.chain_iter() {
+        for i in &split_by_font(t1, &c) {
+            for j in &split_by_distance(t1, i) {
+                t2.push(create_tt(t1, j));
             }
         }
     }
-    let p2 = Poset::create_poset(&tt2);
-    tt2.iter().map(|x| println!("===\n{}",x.text)).count();
+    for i in &t2 {println!("===\n{}", i.text);}
+    let p2 = Poset::create_poset(&t2);
+    println!(">>> {}", p2.min.iter().count());
     true
 }
 
