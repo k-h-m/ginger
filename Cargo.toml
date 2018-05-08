@@ -1,0 +1,39 @@
+[package]
+name = "ginger"
+version = "0.1.0"
+authors = ["k-h-m"]
+
+[[bin]]
+name="ginger"
+path="src/ginger.rs"
+
+[[bin]]
+name="walk_files"
+path="src/walk_files.rs"
+
+[[bin]]
+name="named"
+path="src/named.rs"
+
+[[bin]]
+name="springer"
+path="src/springer.rs"
+
+[[bin]]
+name="page_data"
+path="src/page_data.rs"
+
+[[bin]]
+name="similar"
+path="src/similar.rs"
+
+[[bin]]
+name="zuzu"
+path="src/zuzu.rs"
+
+[dependencies]
+glib = "0.5.0"
+glib-sys = "0.6.0"
+poppler = { git = "https://github.com/k-h-m/poppler-glib-rs" }
+walkdir = "2.1.4"
+clap = "2.31.0"
