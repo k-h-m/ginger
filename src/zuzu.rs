@@ -476,7 +476,7 @@ fn split_by_distance<'a>(x: &[TT], c: &'a[usize]) -> Vec<&'a[usize]> {
     r
 }
 
-fn create_tt(t: &[TT], c: &[usize]) -> TT {
+fn merge_tt(t: &[TT], c: &[usize]) -> TT {
    let b = merge_boxes(c.iter().map(|&x| &t[x].b_box));
    let s = c.iter().fold("".to_string(), |acc,&x| acc + &t[x].text + "\n");
    TT{text: s, b_box: b, font_size: t[c[0]].font_size, font_name: String::from(t[c[0]].font_name.as_str())}
@@ -489,7 +489,7 @@ fn zuzu1(t1: &[TT]) -> bool {
     for c in p1.chain_iter() {
         for i in &split_by_font(t1, &c) {
             for j in &split_by_distance(t1, i) {
-                t2.push(create_tt(t1, j));
+                t2.push(merge_tt(t1, j));
             }
         }
     }
