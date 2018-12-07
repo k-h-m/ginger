@@ -61,7 +61,7 @@ fn main() {
             .index(1))
         .get_matches();
 
-    let invt = matches.is_present("invert");
+    let _invt = matches.is_present("invert");
     let file = matches.value_of("FILE").unwrap();
 
     let mut f = std::fs::File::open(file).expect("file not found");

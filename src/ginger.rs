@@ -6,7 +6,7 @@ extern crate walkdir;
 
 mod item;
 
-use item::ItemType;
+use crate::item::ItemType;
 
 fn substr(s: &str, from: usize, to: usize) -> String {
     s.chars().skip(from).take(to).collect()
